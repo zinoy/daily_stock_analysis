@@ -65,29 +65,51 @@ class FeishuDocManager:
 
             # 2. 解析 Markdown 并写入内容
             # 将 Markdown 转换为 SDK 需要的 Block 对象列表
-            blocks = self._markdown_to_sdk_blocks(content_md)
+            # blocks = self._markdown_to_sdk_blocks(content_md)
+
+            convert_document_request = ConvertDocumentRequest.builder() \
+                .request_body(ConvertDocumentRequestBody.builder()
+                              .content_type("markdown")
+                              .content(content_md)
+                              .build()) \
+                .build()
+
+            convert_resp = self.client.docx.v1.document.convert(convert_document_request)
+
+            if not convert_resp.success():
+                logger.error(f"文档转换失败: {convert_resp.code} - {convert_resp.msg} - {convert_resp.error}")
+                return None
+
+            blocks = convert_resp.data.blocks
+            children = convert_resp.data.first_level_block_ids
 
             # 飞书 API 限制每次写入 Block 数量（建议 50 个左右），分批写入
-            batch_size = 50
+            batch_size = 1000
             doc_block_id = doc_id  # 文档本身也是一个 block
+
+            for block in blocks:
+                if block.block_type == 31 and block.table.property.merge_info:
+                    del block.table.property.merge_info
+                    block.table.property.header_row=True
 
             for i in range(0, len(blocks), batch_size):
                 batch_blocks = blocks[i:i + batch_size]
 
                 # 构造批量添加块的请求
-                batch_add_request = CreateDocumentBlockChildrenRequest.builder() \
+                batch_add_request = CreateDocumentBlockDescendantRequest.builder() \
                     .document_id(doc_id) \
                     .block_id(doc_block_id) \
-                    .request_body(CreateDocumentBlockChildrenRequestBody.builder()
-                                  .children(batch_blocks)  # SDK 需要 Block 对象列表
+                    .request_body(CreateDocumentBlockDescendantRequestBody.builder()
+                                  .children_id(children)  # SDK 需要 Block 对象列表
                                   .index(-1)  # 追加到末尾
+                                  .descendants(batch_blocks)
                                   .build()) \
                     .build()
 
-                write_resp = self.client.docx.v1.document_block_children.create(batch_add_request)
+                write_resp = self.client.docx.v1.document_block_descendant.create(batch_add_request)
 
                 if not write_resp.success():
-                    logger.error(f"写入文档内容失败(批次{i}): {write_resp.code} - {write_resp.msg}")
+                    logger.error(f"写入文档内容失败(批次{i+1}): {write_resp.code} - {write_resp.msg}")
 
             logger.info(f"文档内容写入完成")
             return doc_url
