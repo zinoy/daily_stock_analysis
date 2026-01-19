@@ -853,10 +853,24 @@ def run_full_analysis(
 
                 # 2. 准备内容 (拼接个股分析和大盘复盘)
                 full_content = ""
+                summary = ""
 
                 # 添加大盘复盘内容（如果有）
                 if market_report:
                     full_content += f"# 📈 大盘复盘\n\n{market_report}\n\n---\n\n"
+                    lines = market_report.split('\n')
+
+                    for line in lines:
+                        line = line.strip()
+                        if not line:
+                            continue
+
+                        # 识别标题
+                        if line.startswith('#'):
+                            continue
+
+                        summary = line
+                        break
 
                 # 添加个股决策仪表盘（使用 NotificationService 生成）
                 if results:
@@ -864,7 +878,7 @@ def run_full_analysis(
                     full_content += f"# 🚀 个股决策仪表盘\n\n{dashboard_content}"
 
                 # 3. 创建文档
-                doc_url = feishu_doc.create_daily_doc(doc_title, full_content)
+                doc_url = feishu_doc.create_daily_doc(doc_title, full_content, summary)
                 if doc_url:
                     logger.info(f"飞书云文档创建成功: {doc_url}")
                     # 可选：将文档链接也推送到群里

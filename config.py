@@ -36,6 +36,10 @@ class Config:
     feishu_app_secret: Optional[str] = None
     feishu_folder_token: Optional[str] = None  # 目标文件夹 Token
 
+    feishu_chat_id: Optional[str] = None  # 飞书群聊 ID
+    feishu_template_id: Optional[str] = None  # 飞书消息模板 ID
+    feishu_template_version: Optional[str] = None  # 飞书消息模板版本
+
     # === 数据源 API Token ===
     tushare_token: Optional[str] = None
     
@@ -222,6 +226,9 @@ class Config:
             webui_enabled=os.getenv('WEBUI_ENABLED', 'false').lower() == 'true',
             webui_host=os.getenv('WEBUI_HOST', '127.0.0.1'),
             webui_port=int(os.getenv('WEBUI_PORT', '8000')),
+            feishu_chat_id=os.getenv('FEISHU_CHAT_ID'),
+            feishu_template_id=os.getenv('FEISHU_TEMPLATE_ID'),
+            feishu_template_version=os.getenv('FEISHU_TEMPLATE_VERSION'),
         )
     
     @classmethod

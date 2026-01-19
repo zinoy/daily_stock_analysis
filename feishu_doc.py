@@ -34,7 +34,7 @@ class FeishuDocManager:
         """检查配置是否完整"""
         return bool(self.app_id and self.app_secret and self.folder_token)
 
-    def create_daily_doc(self, title: str, content_md: str) -> Optional[str]:
+    def create_daily_doc(self, title: str, content_md: str, summary: str = "立即点击查看详情！") -> Optional[str]:
         """
         创建日报文档
         """
@@ -112,6 +112,23 @@ class FeishuDocManager:
                     logger.error(f"写入文档内容失败(批次{i+1}): {write_resp.code} - {write_resp.msg}")
 
             logger.info(f"文档内容写入完成")
+
+            # 3. 发送消息到飞书群组
+            if self.config.feishu_chat_id and self.config.feishu_template_id and self.config.feishu_template_version:
+                message_request = lark.api.im.v1.CreateMessageRequest.builder() \
+                    .receive_id_type("chat_id") \
+                    .request_body(lark.api.im.v1.CreateMessageRequestBody.builder()
+                                .receive_id(self.config.feishu_chat_id)
+                                .msg_type("interactive")
+                                .content("{\"data\":{\"template_id\":\"" + self.config.feishu_template_id + "\",\"template_variable\":{\"content\":\"" + summary + "\", \"action\":{\"url\":\"" + doc_url + "\"}},\"template_version_name\":\"" + self.config.feishu_template_version + "\"},\"type\":\"template\"}")
+                                .build()) \
+                    .build()
+
+                msg_resp = self.client.im.v1.message.create(message_request)
+
+                if not msg_resp.success():
+                    logger.error(f"消息发送失败: {msg_resp.code} - {msg_resp.msg} - {msg_resp.error}")
+
             return doc_url
 
         except Exception as e:
