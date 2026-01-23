@@ -98,6 +98,7 @@ class Config:
     
     # === 数据库配置 ===
     database_path: str = "./data/stock_analysis.db"
+    mongodb_uri: str = ""
     
     # === 日志配置 ===
     log_dir: str = "./logs"  # 日志文件目录
@@ -229,6 +230,7 @@ class Config:
             feishu_chat_id=os.getenv('FEISHU_CHAT_ID'),
             feishu_template_id=os.getenv('FEISHU_TEMPLATE_ID'),
             feishu_template_version=os.getenv('FEISHU_TEMPLATE_VERSION'),
+            mongodb_uri=os.getenv('MONGODB_URI', ''),
         )
     
     @classmethod

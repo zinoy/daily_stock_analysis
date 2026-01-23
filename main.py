@@ -997,6 +997,8 @@ def main() -> int:
                 schedule_time=config.schedule_time,
                 run_immediately=False  # 启动时先执行一次
             )
+            from pymongo import MongoClient
+            MongoClient().close()
             return 0
         
         # 模式3: 正常单次运行

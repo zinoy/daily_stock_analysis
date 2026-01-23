@@ -1,14 +1,52 @@
 # feishu_doc.py
 # -*- coding: utf-8 -*-
+from datetime import datetime
 import logging
 import json
 import lark_oapi as lark
 from lark_oapi.api.docx.v1 import *
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TypedDict
 from config import get_config
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+import urllib.parse
 
 logger = logging.getLogger(__name__)
 
+class MongoDBClient:
+    _instance = None
+    _db = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            mongoUri = get_config().mongodb_uri
+            if mongoUri:
+                cls._instance = MongoClient(get_config().mongodb_uri, server_api=ServerApi("1"))
+
+                try:
+                    cls._instance.admin.command("ping")
+                    cls._db = cls._instance.get_database("stock")
+                except Exception as e:
+                    logger.error(f"MongoDB 连接失败: {e}")
+                    cls._instance = None
+        return cls._instance
+
+    @classmethod
+    def get_db(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._db
+    
+    @classmethod
+    def close(cls):
+        if cls._instance is not None:
+            cls._instance.close()
+            cls._instance = None
+            cls._db = None
+
+class StockReport(TypedDict):
+    created_at: datetime
+    doc_id: str
 
 class FeishuDocManager:
     """飞书云文档管理器 (基于官方 SDK lark-oapi)"""
@@ -113,6 +151,13 @@ class FeishuDocManager:
 
             logger.info(f"文档内容写入完成")
 
+            try:
+                db = MongoDBClient.get_db()
+                if db is not None and doc_id is not None:
+                    db.reports.insert_one(StockReport(created_at=datetime.now(), doc_id=doc_id))
+            except Exception as e:
+                logger.error(f"MongoDB 写入失败: {e}")
+
             # 3. 发送消息到飞书群组
             if self.config.feishu_chat_id and self.config.feishu_template_id and self.config.feishu_template_version:
                 message_request = lark.api.im.v1.CreateMessageRequest.builder() \
@@ -120,7 +165,7 @@ class FeishuDocManager:
                     .request_body(lark.api.im.v1.CreateMessageRequestBody.builder()
                                 .receive_id(self.config.feishu_chat_id)
                                 .msg_type("interactive")
-                                .content("{\"data\":{\"template_id\":\"" + self.config.feishu_template_id + "\",\"template_variable\":{\"content\":\"" + summary + "\", \"action\":{\"url\":\"" + doc_url + "\"}},\"template_version_name\":\"" + self.config.feishu_template_version + "\"},\"type\":\"template\"}")
+                                .content("{\"data\":{\"template_id\":\"" + self.config.feishu_template_id + "\",\"template_variable\":{\"content\":\"" + summary + "\", \"action\":{\"url\":\"https://applink.feishu.cn/client/docs/open?url=" + urllib.parse.quote(doc_url) + "\"}},\"template_version_name\":\"" + self.config.feishu_template_version + "\"},\"type\":\"template\"}")
                                 .build()) \
                     .build()
 
@@ -202,3 +247,14 @@ class FeishuDocManager:
             blocks.append(block_builder.build())
 
         return blocks
+
+if __name__ == "__main__":
+    print("start test")
+
+    try:
+        db = MongoDBClient.get_db()
+        if db is not None:
+            db.reports.insert_one(StockReport(created_at=datetime.now(), doc_id="test_doc_id"))
+            MongoDBClient.close()
+    except Exception as e:
+        logger.error(f"MongoDB 写入失败: {e}")

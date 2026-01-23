@@ -129,7 +129,7 @@ class Scheduler:
         
         while self._running and not self.shutdown_handler.should_shutdown:
             self.schedule.run_pending()
-            time.sleep(30)  # 每30秒检查一次
+            time.sleep(10)  # 每10秒检查一次
             
             # 每小时打印一次心跳
             if datetime.now().minute == 0 and datetime.now().second < 30:
