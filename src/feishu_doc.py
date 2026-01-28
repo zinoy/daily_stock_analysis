@@ -29,6 +29,8 @@ class MongoDBClient:
                 except Exception as e:
                     logger.error(f"MongoDB 连接失败: {e}")
                     cls._instance = None
+            else:
+                logger.error(f"MongoDB 配置缺失")
         return cls._instance
 
     @classmethod
@@ -155,6 +157,8 @@ class FeishuDocManager:
                 db = MongoDBClient.get_db()
                 if db is not None and doc_id is not None:
                     db.reports.insert_one(StockReport(created_at=datetime.now(), doc_id=doc_id))
+                else:
+                    logger.error(f"MongoDB 连接失败")
             except Exception as e:
                 logger.error(f"MongoDB 写入失败: {e}")
 
