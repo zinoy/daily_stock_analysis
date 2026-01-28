@@ -6,7 +6,7 @@ import json
 import lark_oapi as lark
 from lark_oapi.api.docx.v1 import *
 from typing import List, Dict, Any, Optional, TypedDict
-from config import get_config
+from src.config import get_config
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 import urllib.parse
