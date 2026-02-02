@@ -169,7 +169,7 @@ class FeishuDocManager:
                     .request_body(lark.api.im.v1.CreateMessageRequestBody.builder()
                                 .receive_id(self.config.feishu_chat_id)
                                 .msg_type("interactive")
-                                .content("{\"data\":{\"template_id\":\"" + self.config.feishu_template_id + "\",\"template_variable\":{\"content\":\"" + summary + "\", \"action\":{\"url\":\"https://applink.feishu.cn/client/docs/open?url=" + urllib.parse.quote(doc_url) + "\"}},\"template_version_name\":\"" + self.config.feishu_template_version + "\"},\"type\":\"template\"}")
+                                .content("{\"data\":{\"template_id\":\"" + self.config.feishu_template_id + "\",\"template_variable\":{\"content\":\"" + summary + "\", \"action\":{\"pc_url\":\"" + doc_url + "\",\"url\":\"https://applink.feishu.cn/client/docs/open?url=" + urllib.parse.quote(doc_url) + "\"}},\"template_version_name\":\"" + self.config.feishu_template_version + "\"},\"type\":\"template\"}")
                                 .build()) \
                     .build()
 
