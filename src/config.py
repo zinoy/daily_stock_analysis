@@ -1993,8 +1993,6 @@ class Config:
             webui_enabled=os.getenv('WEBUI_ENABLED', 'false').lower() == 'true',
             webui_host=os.getenv('WEBUI_HOST', '127.0.0.1'),
             webui_port=parse_env_int(os.getenv('WEBUI_PORT'), 8000, field_name='WEBUI_PORT', minimum=1, maximum=65535),
-            # opt by Zino
-            feishu_chat_id=os.getenv('FEISHU_CHAT_ID'),
             feishu_template_id=os.getenv('FEISHU_TEMPLATE_ID'),
             feishu_template_version=os.getenv('FEISHU_TEMPLATE_VERSION'),
             mongodb_uri=os.getenv('MONGODB_URI', ''),
