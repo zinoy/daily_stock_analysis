@@ -34,9 +34,7 @@ WEBUI_HOST=127.0.0.1
 WEBUI_HOST=0.0.0.0
 ```
 
-> `127.0.0.1` 表示只有本机能访问，`0.0.0.0` 表示允许任何来源访问。云服务器必须改成 `0.0.0.0` 才能从外网打开界面。
-
-> **注意**：`.env` 里的 `WEBUI_HOST` 优先级高于命令行参数。所以即使你在命令里加了 `--host 0.0.0.0`，如果 `.env` 里还是 `127.0.0.1`，外网照样访问不了。请务必先改 `.env`。
+> `127.0.0.1` 表示只有本机能访问，`0.0.0.0` 表示允许任何来源访问。云服务器需要把 `.env` 中的 `WEBUI_HOST` 改成 `0.0.0.0`，或在启动命令里显式传入 `--host 0.0.0.0`，才能从外网打开界面。
 
 ### 第二步：启动服务
 
@@ -81,6 +79,16 @@ WEBUI_PORT=8888
 ### 第一步：确认已有 .env 配置
 
 项目的 `docker/docker-compose.yml` 在容器内部已经自动设置了 `WEBUI_HOST=0.0.0.0`，你不需要在 `.env` 里再改监听地址，Docker 会自动处理。
+
+Docker Compose 中的 `env_file: ../.env` 只会把 `.env` 作为**启动环境变量**注入容器，不会在容器内创建 `/app/.env`，也不会让 WebUI 保存配置时回写宿主机 `.env`。新版 WebUI 会在活跃 `.env` 文件缺少某些键时展示启动注入的同名环境变量作为兜底，因此页面上能看到 Docker 启动时注入的配置；但“导出 `.env`”仍只导出当前活跃配置文件内容。
+
+如果希望 WebUI 中保存的配置在容器删除、重建或升级后继续保留，请把活跃配置文件放到已挂载的数据卷中，例如在 Compose 的 `environment` 中增加：
+
+```yaml
+- ENV_FILE=/app/data/runtime.env
+```
+
+同时保留 `../data:/app/data` 挂载。注意：如果启动时的 `../.env`、`docker run -e` 或 Compose `environment:` 里还保留同名旧值，容器重启后这些启动环境变量仍可能覆盖运行时文件中的保存值；要让 WebUI 保存值接管，请同步更新或移除启动环境中的同名配置。
 
 ### 第二步：启动服务
 
@@ -145,6 +153,13 @@ http://your-domain.com:8000
 
 ## 如何确认 Docker 重建已生效
 
+先区分两件事：
+
+1. **Docker 镜像发布版本**：看你部署时使用的镜像 tag，例如 `ghcr.io/zhulinsen/daily_stock_analysis:v3.12.0`。仓库的 Docker 发布由 `.github/workflows/docker-publish.yml` 按 `v*.*.*` Git tag 触发，所以 Docker 版本应以镜像 tag / GitHub Releases 为准。
+2. **当前页面加载的前端构建**：看 WebUI “系统设置”页里的版本信息卡片，用来确认浏览器拿到的静态资源是否已经更新。
+
+也就是说，**“系统设置”里的版本信息更适合判断前端是否重建成功，不等同于 Docker 镜像发布版本**。
+
 WebUI 现在会在“系统设置”页展示只读的“版本信息”卡片，包含：
 
 - `WebUI 版本`
@@ -155,7 +170,21 @@ WebUI 现在会在“系统设置”页展示只读的“版本信息”卡片�
 
 当你重新执行 `docker-compose -f ./docker/docker-compose.yml up -d --build`，或者单独重新执行前端 `npm run build` 后，可以刷新浏览器并进入“系统设置”，优先确认“构建时间”是否已经变化；若变化，通常就说明当前加载的静态资源已经切换到最新构建。
 
-在确认本地前端打包链路时，建议执行以下命令用于本次改动的最小验证闭环：
+如果你想确认“我现在到底部署的是哪个正式版本”，优先用下面这些方式：
+
+```yaml
+# 方式 1：看 docker-compose / 部署脚本里的 image tag
+image: ghcr.io/zhulinsen/daily_stock_analysis:v3.12.0
+```
+
+```bash
+# 方式 2：回看你的拉取命令
+docker pull ghcr.io/zhulinsen/daily_stock_analysis:v3.12.0
+```
+
+如果你一直使用 `latest`，建议改成显式版本 tag；否则很难仅凭容器内页面信息判断自己是否已经重复更新到同一版本。
+
+在确认本地前端打包链路时，建议执行以下命令作为最小验证闭环：
 
 ```bash
 cd apps/dsa-web
@@ -198,7 +227,7 @@ sudo firewall-cmd --reload
 
 这是第二常见原因。`.env` 里默认是 `WEBUI_HOST=127.0.0.1`，这样服务只监听本机，外网根本连不上。
 
-改法：打开 `.env`，把 `WEBUI_HOST=127.0.0.1` 改成 `WEBUI_HOST=0.0.0.0`，然后重启服务。
+改法：打开 `.env`，把 `WEBUI_HOST=127.0.0.1` 改成 `WEBUI_HOST=0.0.0.0`，然后重启服务；也可以在启动命令里显式添加 `--host 0.0.0.0`。
 
 > Docker 方式不需要改这个，可以跳过。
 
