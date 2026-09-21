@@ -14,6 +14,7 @@ from datetime import date
 from threading import Lock
 from typing import Any, Dict, List, Optional, Tuple
 
+from src.agent.tools.execution import check_tool_execution
 from src.agent.tools.registry import ToolParameter, ToolDefinition, ToolPolicy
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ _ANALYSIS_CONTEXT_POLICY = ToolPolicy.declared(
     side_effects=["db_read"],
     permissions=["analysis_context:read"],
     scope_dimensions=["stock"],
+    cancellation_safe=True,
 )
 _PORTFOLIO_READ_POLICY = ToolPolicy.declared(
     read_only=True,
@@ -114,8 +116,15 @@ def _normalize_history_days(days: Any) -> Tuple[int, Dict[str, Any]]:
 def _history_code_candidates(stock_code: str) -> Tuple[List[str], str]:
     """Return cache lookup candidates plus canonical write code."""
     from data_provider.base import canonical_stock_code, normalize_stock_code
+    from src.services.stock_list_parser import ParseStatus, parse_analysis_target
 
     raw_code = str(stock_code or "").strip()
+    target = parse_analysis_target(raw_code)
+    if target.asset_type == ParseStatus.INDEX:
+        # Explicit index identities keep their canonical bucket (``sh000016``
+        # / ``csi930955``) so index bars never land in the colliding stock
+        # bucket (Story 1.5).
+        return [target.canonical_id], target.canonical_id
     normalized_code = canonical_stock_code(normalize_stock_code(raw_code))
     candidates: List[str] = []
     for candidate in (canonical_stock_code(raw_code), normalized_code):
@@ -441,8 +450,10 @@ get_chip_distribution_tool = ToolDefinition(
 
 def _handle_get_analysis_context(stock_code: str) -> dict:
     """Get stored analysis context from database."""
+    check_tool_execution()
     db = _get_db()
     context = db.get_analysis_context(stock_code)
+    check_tool_execution()
 
     if context is None:
         return {"error": f"No analysis context in DB for {stock_code}"}
@@ -450,6 +461,7 @@ def _handle_get_analysis_context(stock_code: str) -> dict:
     # Return safely serializable version (remove raw_data to save tokens)
     safe_context = {}
     for k, v in context.items():
+        check_tool_execution()
         if k == "raw_data":
             safe_context["has_raw_data"] = True
             safe_context["raw_data_count"] = len(v) if isinstance(v, list) else 0
@@ -526,7 +538,7 @@ get_stock_info_tool = ToolDefinition(
         ToolParameter(
             name="stock_code",
             type="string",
-            description="A-share stock code, e.g., '600519'",
+            description="Stock code: A-share '600519', US 'AAPL', HK '00700'",
         ),
     ],
     handler=_handle_get_stock_info,

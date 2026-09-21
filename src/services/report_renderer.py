@@ -23,9 +23,17 @@ from src.report_language import (
     get_chip_unavailable_reason,
     is_chip_structure_unavailable,
     localize_chip_health,
+    localize_conflict_severity,
+    localize_consensus_level,
     localize_operation_advice,
+    localize_strategy_signal,
+    localize_strategy_skill,
+    localize_strategy_conflict_description,
+    localize_strategy_synthesis_summary,
     localize_trend_prediction,
     normalize_report_language,
+    normalize_strategy_synthesis_payload,
+    strategy_invalid_opinion_count,
 )
 from src.schemas.decision_action import (
     display_action_fields_for_result,
@@ -77,6 +85,9 @@ def _resolve_templates_dir() -> Path:
     if not templates_dir.is_absolute():
         return base / templates_dir
     return templates_dir
+
+
+from src.services.empty_news import empty_news_disclosure
 
 
 def render(
@@ -153,6 +164,7 @@ def render(
         rn = get_localized_stock_name(r.name, r.code, report_language)
         sorted_enriched.append({
             "result": r,
+            "empty_news_disclosure": empty_news_disclosure(r, report_language),
             "signal_text": display_advice,
             "signal_emoji": se,
             "stock_name": _escape_md(rn),
@@ -225,6 +237,14 @@ def render(
         "localize_action_label": localize_action_label,
         "localize_trend_prediction": localize_trend_prediction,
         "localize_chip_health": localize_chip_health,
+        "localize_strategy_signal": localize_strategy_signal,
+        "localize_strategy_skill": localize_strategy_skill,
+        "localize_strategy_conflict_description": localize_strategy_conflict_description,
+        "localize_strategy_synthesis_summary": localize_strategy_synthesis_summary,
+        "localize_consensus_level": localize_consensus_level,
+        "localize_conflict_severity": localize_conflict_severity,
+        "normalize_strategy_synthesis_payload": normalize_strategy_synthesis_payload,
+        "strategy_invalid_opinion_count": strategy_invalid_opinion_count,
         "signal_attribution_has_content": signal_attribution_has_content,
         "signal_attribution_weight_items": signal_attribution_weight_items,
     }
